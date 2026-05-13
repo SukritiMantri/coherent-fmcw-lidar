@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Coherent FMCW LiDAR — Workflow</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #171a21;
+    --panel-2: #1d2129;
+    --border: #2a3140;
+    --accent: #5ec3ff;
+    --accent-2: #ffb86c;
+    --good: #7fdca4;
+    --warn: #ffd166;
+    --bad: #ff6b6b;
+    --text: #e6e9ef;
+    --muted: #8a93a6;
+    --mono: ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 28px 36px 60px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.5;
+  }
+  h1 {
+    margin: 0 0 4px;
+    font-size: 26px;
+    letter-spacing: 0.2px;
+  }
+  h1 span.tag {
+    font-size: 12px;
+    background: var(--accent);
+    color: #0b0d11;
+    padding: 3px 8px;
+    border-radius: 4px;
+    vertical-align: middle;
+    margin-left: 10px;
+    font-weight: 700;
+  }
+  .subtitle {
+    color: var(--muted);
+    font-size: 14px;
+    margin-bottom: 24px;
+  }
+  .layout {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 24px;
+  }
+  .flow {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .stage {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--accent);
+    border-radius: 8px;
+    padding: 14px 16px;
+    position: relative;
+  }
+  .stage.loop { border-left-color: var(--accent-2); }
+  .stage.check { border-left-color: var(--good); }
+  .stage h3 {
+    margin: 0 0 6px;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .step-num {
+    background: var(--accent);
+    color: #0b0d11;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .loop .step-num { background: var(--accent-2); }
+  .check .step-num { background: var(--good); }
+  .stage p { margin: 4px 0; font-size: 13.5px; color: var(--text); }
+  .stage code, .mono { font-family: var(--mono); font-size: 12.5px; }
+  .stage code {
+    background: #0b0d11;
+    padding: 1px 6px;
+    border-radius: 3px;
+    color: #c7d3e6;
+  }
+  .arrow {
+    text-align: center;
+    color: var(--muted);
+    font-size: 18px;
+    line-height: 1;
+    margin: -4px 0;
+  }
+  .loop-wrapper {
+    border: 1px dashed var(--accent-2);
+    border-radius: 10px;
+    padding: 14px;
+    background: rgba(255, 184, 108, 0.04);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    position: relative;
+  }
+  .loop-wrapper::before {
+    content: "for (θx, θy) in 5×5 scan_grid:  // 25 directions";
+    position: absolute;
+    top: -10px;
+    left: 16px;
+    background: var(--bg);
+    padding: 0 8px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--accent-2);
+  }
+  .loop-step {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+  .loop-step .name {
+    font-weight: 600;
+    color: var(--accent-2);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 2px;
+  }
+  .loop-step .detail { color: var(--muted); font-size: 12.5px; }
+  .loop-step .math {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: #c7d3e6;
+    margin-top: 4px;
+    white-space: pre-wrap;
+  }
+  .sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+  }
+  .card h4 {
+    margin: 0 0 8px;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--muted);
+  }
+  .kv {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 4px 12px;
+    font-size: 12.5px;
+    font-family: var(--mono);
+  }
+  .kv .k { color: var(--muted); }
+  .kv .v { color: var(--text); text-align: right; }
+  .check-line {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    font-size: 12.5px;
+    padding: 4px 0;
+    border-bottom: 1px dashed var(--border);
+  }
+  .check-line:last-child { border-bottom: none; }
+  .check-line .badge {
+    background: var(--good);
+    color: #0b0d11;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 3px;
+  }
+  .check-line .desc { flex: 1; }
+  .check-line .val { font-family: var(--mono); color: var(--muted); }
+  .footnote {
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--muted);
+    font-style: italic;
+  }
+  .legend {
+    display: flex;
+    gap: 14px;
+    margin-bottom: 18px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .legend .swatch {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+    margin-right: 5px;
+    vertical-align: middle;
+  }
+</style>
+</head>
+<body>
+
+<h1>Coherent FMCW LiDAR <span class="tag">Workflow</span></h1>
+<div class="subtitle">End-to-end signal chain — Gaussian Beam Decomposition source, scanner, TX lens, planar mirror at R = 100 m, mode-matched LO, triangular FMCW chirp. 5×5 scan → 25 (x, y, R, v) data points.</div>
+
+<div class="legend">
+  <div><span class="swatch" style="background: var(--accent)"></span>Setup &amp; decomposition</div>
+  <div><span class="swatch" style="background: var(--accent-2)"></span>Per-direction measurement loop</div>
+  <div><span class="swatch" style="background: var(--good)"></span>Sanity checks</div>
+</div>
+
+<div class="layout">
+
+  <div class="flow">
+
+    <!-- Stage 1 -->
+    <div class="stage">
+      <h3><span class="step-num">1</span>Parameters &amp; grids</h3>
+      <p>Optical (<code>λ=1550 nm</code>, <code>w₀=1 mm</code>, <code>f_lens=1 m</code>, <code>R=100 m</code>, <code>v=10 m/s</code>, <code>z_receive=2R=200 m</code>), FMCW (<code>B=1 GHz</code>, <code>T=10 µs</code>, <code>fs=200 MHz</code>), basis 9×9 with 1.5 mm spacing, scan grid 5×5 in ±1 mrad.</p>
+      <p class="mono">LSQ grid: ±20 mm × 401²  |  Viz grid: ±2000 mm × 513² (wide enough to hold all 81 beamlets after scanner+lens redirect)</p>
+    </div>
+    <div class="arrow">▼</div>
+
+    <!-- Stage 2 -->
+    <div class="stage">
+      <h3><span class="step-num">2</span>Build source basis (81 beamlets at z=0)</h3>
+      <p>9×9 grid of <code>w=1 mm</code> Gaussian beamlets at <code>z=0</code>, on the 1.5 mm-spacing source grid.</p>
+      <p class="mono">make_source_state(w, k, x0, y0, z0=0)  →  q_anchor = -i·zR</p>
+    </div>
+    <div class="arrow">▼</div>
+
+    <!-- Stage 3 -->
+    <div class="stage">
+      <h3><span class="step-num">3</span>Decompose Gaussian source → c_source</h3>
+      <p>Tikhonov-regularized least squares (<code>λ_reg=1e-8</code>) projects <code>E_src = exp(-(x²+y²)/w₀²)</code> onto the 81-beamlet basis on the LSQ grid.</p>
+      <p class="mono">A = GᴴG + λI  ;  b = GᴴE_src  ;  c_source = A⁻¹b</p>
+      <p class="footnote">Sanity 1: ‖G·c − E_src‖ / ‖E_src‖ at the basis-decomposition floor.</p>
+    </div>
+    <div class="arrow">▼</div>
+
+    <!-- Loop wrapper -->
+    <div class="loop-wrapper">
+
+      <div class="loop-step">
+        <div class="name">4a · Scanner</div>
+        <div class="detail">Apply uniform tilt to every beamlet — pure <code>kx/ky</code> bump.</div>
+        <div class="math">kx ← kx + k·sin(θx) ;  ky ← ky + k·sin(θy)</div>
+      </div>
+
+      <div class="loop-step">
+        <div class="name">4b · Thin lens (at z=0)</div>
+        <div class="detail">Per-beamlet q-parameter update plus a <em>position-dependent</em> tilt (the lens phase gradient).</div>
+        <div class="math">1/q' = 1/q − 1/f  ;  kx ← kx − k·x_at_lens/f</div>
+      </div>
+
+      <div class="loop-step">
+        <div class="name">4c · Propagate to z = 2R = 200 m</div>
+        <div class="detail">Round-trip via image method (planar mirror = forward propagation by 2R). Sum all 81 beamlets on the viz grid → <code>E_signal(x,y)</code>.</div>
+      </div>
+
+      <div class="loop-step">
+        <div class="name">4d · Predict spot position</div>
+        <div class="detail">Geometric-optics target landing point.</div>
+        <div class="math">x_spot = 2R·tan(θx) ;  y_spot = 2R·tan(θy)</div>
+      </div>
+
+      <div class="loop-step">
+        <div class="name">4e · Build mode-matched LO ★</div>
+        <div class="detail">LO must match q_anchor, position, <strong>AND</strong> tilt. Position-only matching collapses off-axis overlap by 3–6 orders of magnitude.</div>
+        <div class="math">lo: q=q_signal, (x,y)=(x_spot,y_spot), kx=k·sin(θx), ky=k·sin(θy)</div>
+      </div>
+
+      <div class="loop-step">
+        <div class="name">4f · Coherent overlap integral</div>
+        <div class="detail">Spatial mode-overlap between signal and LO at the receive plane.</div>
+        <div class="math">overlap = ∫∫ E_signal · E_LO* dx dy  ≈  Σ E_s·E_L* · dx²</div>
+      </div>
+
+      <div class="loop-step">
+        <div class="name">4g · FMCW signal synthesis</div>
+        <div class="detail">Triangular chirp produces two beat tones from the optical round-trip delay + Doppler shift.</div>
+        <div class="math">τ = 2R/c   ;   f_D = 2v·f₀/c
+f_up    = (B/T)·τ − f_D
+f_down  = (B/T)·τ + f_D
+I_up(t)   = 2|overlap|·cos(2π f_up t)
+I_down(t) = 2|overlap|·cos(2π f_down t)</div>
+      </div>
+
+      <div class="loop-step">
+        <div class="name">4h · FFT → measured beats</div>
+        <div class="detail">Peak-pick on positive-frequency FFT bins gives <code>f_up_m</code>, <code>f_down_m</code>.</div>
+      </div>
+
+      <div class="loop-step">
+        <div class="name">4i · Recover (R, v)</div>
+        <div class="math">R_meas = (f_up_m + f_down_m) · c·T / (4B)
+v_meas = (f_down_m − f_up_m) · c / (4·f₀)</div>
+      </div>
+
+      <div class="loop-step">
+        <div class="name">4j · Spatial centroid (sanity)</div>
+        <div class="math">x_c = Σ |E|²·x  / Σ|E|²    (likewise y_c)</div>
+      </div>
+    </div>
+
+    <div class="arrow">▼</div>
+
+    <!-- Stage 5 -->
+    <div class="stage">
+      <h3><span class="step-num">5</span>Aggregate 25 LiDAR points</h3>
+      <p>Each scan direction → tuple <code>(θx, θy, R, v, x_centroid, y_centroid, overlap)</code>. Stack arrays for stability statistics.</p>
+    </div>
+    <div class="arrow">▼</div>
+
+    <!-- Stage 6 -->
+    <div class="stage check">
+      <h3><span class="step-num">6</span>Sanity checks (5)</h3>
+      <p style="font-size:13px;">Source decomposition residual · Spot centroid agreement · Range stability · Velocity stability · Overlap stability across all 25 directions.</p>
+    </div>
+
+  </div>
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+
+    <div class="card">
+      <h4>Key parameters</h4>
+      <div class="kv">
+        <div class="k">λ</div><div class="v">1550 nm</div>
+        <div class="k">w₀ (source)</div><div class="v">1.0 mm</div>
+        <div class="k">f_lens</div><div class="v">1.0 m</div>
+        <div class="k">R_target</div><div class="v">100 m</div>
+        <div class="k">v_target</div><div class="v">10 m/s</div>
+        <div class="k">z_receive</div><div class="v">200 m (= 2R)</div>
+        <div class="k">B_chirp</div><div class="v">1 GHz</div>
+        <div class="k">T_chirp</div><div class="v">10 µs</div>
+        <div class="k">sample_rate</div><div class="v">200 MHz</div>
+        <div class="k">N_samples</div><div class="v">2000</div>
+        <div class="k">Basis</div><div class="v">9×9 = 81 beamlets</div>
+        <div class="k">Scan</div><div class="v">5×5 in ±1 mrad</div>
+        <div class="k">LSQ grid</div><div class="v">401² × ±20 mm</div>
+        <div class="k">Viz grid</div><div class="v">513² × ±2000 mm</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h4>Sanity-check results</h4>
+      <div class="check-line">
+        <span class="badge">1</span>
+        <span class="desc">Source decomp residual</span>
+        <span class="val">≈ basis floor</span>
+      </div>
+      <div class="check-line">
+        <span class="badge">2</span>
+        <span class="desc">Spot centroid agreement</span>
+        <span class="val">sub-mm</span>
+      </div>
+      <div class="check-line">
+        <span class="badge">3</span>
+        <span class="desc">Range R (all 25 dirs)</span>
+        <span class="val">99.9808 m, σ ≈ 0</span>
+      </div>
+      <div class="check-line">
+        <span class="badge">4</span>
+        <span class="desc">Velocity v (all 25 dirs)</span>
+        <span class="val">+9.9975 m/s, σ ≈ 0</span>
+      </div>
+      <div class="check-line">
+        <span class="badge">5</span>
+        <span class="desc">Overlap (mode-matched LO)</span>
+        <span class="val">σ/μ ≈ 0.0000 %</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h4>Design notes</h4>
+      <p style="font-size:12.5px; margin:6px 0; color:var(--text);">
+        ★ <strong>Mode-matched LO.</strong> Must match <em>all</em> of
+        <code>(q_anchor, x, y, kx, ky)</code>. Position-only matching causes off-axis
+        overlap to collapse by 3–6 orders of magnitude — easy bug to miss because the
+        on-axis direction still works.
+      </p>
+      <p style="font-size:12.5px; margin:6px 0; color:var(--text);">
+        ★ <strong>Grid extent.</strong> Off-axis beamlets after scanner + lens
+        land far from the origin at <code>z = 2R</code>. Viz grid must be wide
+        enough (±2000 mm here) to capture all 81 beamlets without clipping.
+      </p>
+      <p style="font-size:12.5px; margin:6px 0; color:var(--text);">
+        ★ <strong>Nyquist.</strong> Max unambiguous R = (fs/2)·c·T/(2B) = 150 m
+        with these parameters; we sit comfortably at R = 100 m.
+      </p>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>
