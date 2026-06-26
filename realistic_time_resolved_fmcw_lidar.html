@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Realistic Time-Resolved FMCW LiDAR — Workflow</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #171a21;
+    --panel-2: #1d2129;
+    --border: #2a3140;
+    --accent: #5ec3ff;
+    --accent-2: #ffb86c;
+    --good: #7fdca4;
+    --warn: #ffd166;
+    --bad: #ff6b6b;
+    --text: #e6e9ef;
+    --muted: #8a93a6;
+    --mono: ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 28px 36px 60px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.5;
+  }
+  h1 {
+    margin: 0 0 4px;
+    font-size: 26px;
+    letter-spacing: 0.2px;
+  }
+  h1 span.tag {
+    font-size: 12px;
+    background: var(--accent);
+    color: #0b0d11;
+    padding: 3px 8px;
+    border-radius: 4px;
+    vertical-align: middle;
+    margin-left: 10px;
+    font-weight: 700;
+  }
+  .subtitle {
+    color: var(--muted);
+    font-size: 14px;
+    margin-bottom: 24px;
+  }
+  .layout {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 24px;
+  }
+  .flow {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .stage {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--accent);
+    border-radius: 8px;
+    padding: 14px 16px;
+    position: relative;
+  }
+  .stage.loop { border-left-color: var(--accent-2); }
+  .stage.check { border-left-color: var(--good); }
+  .stage h3 {
+    margin: 0 0 6px;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .step-num {
+    background: var(--accent);
+    color: #0b0d11;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .stage p { margin: 4px 0; font-size: 13px; color: var(--text); }
+  .stage code { color: var(--accent); font-family: var(--mono); font-size: 12px; }
+  .stage .mono {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 6px 9px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: #c7d3e6;
+    white-space: pre-wrap;
+    margin: 6px 0 0;
+  }
+  .stage .footnote { color: var(--muted); font-size: 12px; font-style: italic; }
+  .arrow {
+    text-align: center;
+    color: var(--muted);
+    font-size: 16px;
+    margin: -4px 0;
+  }
+  .loop-wrapper {
+    background: rgba(255, 184, 108, 0.05);
+    border: 1px dashed var(--accent-2);
+    border-radius: 10px;
+    padding: 12px;
+    position: relative;
+  }
+  .loop-wrapper::before {
+    content: "FOR each R in [1, 100, 200] m  ::  FOR each chirp slice t_i in N_slices";
+    position: absolute;
+    top: -10px;
+    left: 16px;
+    background: var(--bg);
+    padding: 0 8px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--accent-2);
+    letter-spacing: 0.4px;
+  }
+  .loop-step {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent-2);
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-size: 13px;
+    margin: 8px 0;
+  }
+  .loop-step .name {
+    font-weight: 600;
+    color: var(--accent-2);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 2px;
+  }
+  .loop-step .detail { color: var(--muted); font-size: 12.5px; }
+  .loop-step .math {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: #c7d3e6;
+    margin-top: 4px;
+    white-space: pre-wrap;
+  }
+  .sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+  }
+  .card h4 {
+    margin: 0 0 8px;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--muted);
+  }
+  .kv {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 4px 12px;
+    font-size: 12.5px;
+    font-family: var(--mono);
+  }
+  .kv .k { color: var(--muted); }
+  .kv .v { color: var(--text); text-align: right; }
+  .check-line {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    font-size: 12.5px;
+    padding: 4px 0;
+    border-bottom: 1px dashed var(--border);
+  }
+  .check-line:last-child { border-bottom: none; }
+  .check-line .badge {
+    background: var(--good);
+    color: #0b0d11;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 3px;
+  }
+  .check-line .desc { flex: 1; }
+  .check-line .val { font-family: var(--mono); color: var(--muted); }
+  .footnote {
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--muted);
+    font-style: italic;
+  }
+  .legend {
+    display: flex;
+    gap: 14px;
+    margin-bottom: 18px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .legend .swatch {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+    margin-right: 5px;
+    vertical-align: middle;
+  }
+  .pill {
+    display: inline-block;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--warn);
+    font-family: var(--mono);
+    font-size: 10.5px;
+    padding: 1px 6px;
+    border-radius: 3px;
+    margin-left: 6px;
+    letter-spacing: 0.3px;
+  }
+</style>
+</head>
+<body>
+
+<h1>Realistic Time-Resolved Coherent FMCW LiDAR <span class="tag">Workflow</span></h1>
+<div class="subtitle">Production-realistic 25 mm collimated beam (no lens), time-resolved chirp loop, LO designed once for nominal R = 100 m. Range extracted from physical propagation phase rotation across three target ranges (1, 100, 200 m). Shows the realistic η-vs-R tolerance envelope.</div>
+
+<div class="legend">
+  <div><span class="swatch" style="background: var(--accent)"></span>One-time setup (geometry, basis, LO design)</div>
+  <div><span class="swatch" style="background: var(--accent-2)"></span>Per-R · per-slice chirp loop</div>
+  <div><span class="swatch" style="background: var(--good)"></span>R extraction &amp; results</div>
+</div>
+
+<div class="layout">
+
+  <div class="flow">
+
+    <!-- Stage 1 -->
+    <div class="stage">
+      <h3><span class="step-num">1</span>Parameters &amp; geometry <span class="pill">no lens</span></h3>
+      <p>Optical (<code>λ = 1550 nm</code>, <code>w₀ = 12.5 mm</code> source = 25 mm collimated beam, <code>ap_radius = 20 mm</code>), chirp (<code>B = 1 GHz</code>, <code>T = 10 µs</code>), operating range (<code>R = [1, 100, 200] m</code>, <code>R_nominal = 100 m</code>).</p>
+      <p class="footnote">Source represents the output of a beam expander telescope. Full source chain (laser diode → fiber → amplifier → expander) deferred to a future notebook.</p>
+    </div>
+    <div class="arrow">▼</div>
+
+    <!-- Stage 2 -->
+    <div class="stage">
+      <h3><span class="step-num">2</span>Build source basis &amp; LSQ (one-time)</h3>
+      <p>9×9 = 81 Gaussian beamlets at <code>w_basis = 12.5 mm</code>, spacing 6.25 mm. Tikhonov-regularized LSQ projects the source field onto the basis.</p>
+      <p class="mono">A = GᴴG + λI  ;  b = GᴴE_src  ;  c_src = A⁻¹b      // matched basis → residual ≈ 1e-8</p>
+    </div>
+    <div class="arrow">▼</div>
+
+    <!-- Stage 3 -->
+    <div class="stage">
+      <h3><span class="step-num">3</span>Design LO for nominal R (one-time) ★</h3>
+      <p>The LO's q-parameter is evolved to the round-trip plane of the <strong>nominal</strong> range R = 100 m. This same LO is used at every R below — modeling production LO that is built once.</p>
+      <p class="mono">LO_q_at_design = (2·R_nominal) + source_basis[0]['q_anchor']
+                  = 200 - 316.7j   →  w = 14.8 mm,  R = 700 m at receive plane</p>
+      <p class="footnote">Mismatch at off-nominal R is the realistic feature — academic codes hide it by rebuilding the LO per measurement.</p>
+    </div>
+    <div class="arrow">▼</div>
+
+    <!-- Loop wrapper -->
+    <div class="loop-wrapper">
+
+      <div class="loop-step">
+        <div class="name">4a · Set up the chirp slices</div>
+        <div class="detail">Pick N_slices to satisfy Nyquist on the beat frequency at this R.</div>
+        <div class="math">N_slices ≥ 2·f_beat·T = 4·B·R / c
+For R = 1 m:   ~200      |   R = 100 m:  ~2000     |   R = 200 m:  ~3000</div>
+      </div>
+
+      <div class="loop-step">
+        <div class="name">4b · Compute instantaneous k(t_i)</div>
+        <div class="detail">For each slice, the laser is at a slightly different optical frequency.</div>
+        <div class="math">f(t_i) = f₀ + (B/T)·t_i      ;      k_i = 2π·f(t_i) / c</div>
+      </div>
+
+      <div class="loop-step">
+        <div class="name">4c · Evaluate signal field at z = 2R (per slice)</div>
+        <div class="detail">Full GBD basis sum at receiver plane using slice-specific k_i. Carries the propagation phase exp(i·kz·2R) that rotates with k.</div>
+        <div class="math">E_signal_i = basis_sum(basis, c_src, X_g, Y_g, k_i, z = 2·R)</div>
+      </div>
+
+      <div class="loop-step">
+        <div class="name">4d · Evaluate LO field at z = 2R (per slice)</div>
+        <div class="detail">LO state has <code>z_anchor = 2·R</code> so dz = 0 → no propagation phase. q is the FIXED design q.</div>
+        <div class="math">E_LO_i = evaluate_beam_state(lo_state, X_g, Y_g, k_i, z = 2·R)</div>
+      </div>
+
+      <div class="loop-step">
+        <div class="name">4e · Coherent overlap (inside aperture)</div>
+        <div class="detail">Restricted to the 20 mm aperture mask. Complex-valued.</div>
+        <div class="math">overlap_i = Σ E_signal_i[mask] · E_LO_i*[mask] · dx²</div>
+      </div>
+
+      <div class="loop-step">
+        <div class="name">4f · R extraction — Method A (phase slope)</div>
+        <div class="detail">After all slices: unwrap arg(overlap) vs t, fit a line. Slope = 2π·f_beat. Sub-mm precision, no FFT bin limit.</div>
+        <div class="math">phases = np.unwrap(np.angle(overlaps))
+slope, _ = np.polyfit(t_slices, phases, 1)
+R_phase = (slope / 2π) · c·T / (2·B)</div>
+      </div>
+
+      <div class="loop-step">
+        <div class="name">4g · R extraction — Method B (photocurrent FFT)</div>
+        <div class="detail">Build real photocurrent, FFT, find peak. Matches what real hardware measures. Bin-limited to ~15 cm.</div>
+        <div class="math">I_t = 2·Re(overlap)
+peak = argmax(|FFT(I_t)|[positive])
+R_fft = freqs_pos[peak] · c·T / (2·B)</div>
+      </div>
+
+      <div class="loop-step">
+        <div class="name">4h · Heterodyne efficiency η (normalized)</div>
+        <div class="detail">Standard formula, exact numerical integration over the aperture. Captures both LO mode-mismatch and aperture-clipping effects.</div>
+        <div class="math">η = |Σ E_sig · E_LO* · dx²|² / (Σ|E_sig|²·dx² · Σ|E_LO|²·dx²)</div>
+      </div>
+
+    </div>
+
+    <div class="arrow">▼</div>
+
+    <!-- Stage 5 -->
+    <div class="stage check">
+      <h3><span class="step-num">5</span>R-vs-input plot + η-vs-R tolerance envelope</h3>
+      <p>Two-panel headline figure:</p>
+      <p>· <strong>R extracted vs R input</strong> (log–log): both methods track the diagonal across three orders of magnitude. Phase method sub-mm; FFT method one-bin (15 cm).</p>
+      <p>· <strong>η vs R</strong>: peak at R = 100 m (LO matched), graceful degradation at R = 1 m and R = 200 m. The realistic tolerance envelope.</p>
+    </div>
+
+  </div>
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+
+    <div class="card">
+      <h4>Key parameters</h4>
+      <div class="kv">
+        <div class="k">λ</div><div class="v">1550 nm</div>
+        <div class="k">Source beam</div><div class="v">25 mm collim.</div>
+        <div class="k">Lens</div><div class="v">— (none)</div>
+        <div class="k">RX aperture</div><div class="v">20 mm radius</div>
+        <div class="k">Rayleigh zR</div><div class="v">316.7 m</div>
+        <div class="k">R_nominal (LO)</div><div class="v">100 m</div>
+        <div class="k">R test values</div><div class="v">1, 100, 200 m</div>
+        <div class="k">B_chirp</div><div class="v">1 GHz</div>
+        <div class="k">T_chirp</div><div class="v">10 µs</div>
+        <div class="k">N_slices (R=1m)</div><div class="v">200</div>
+        <div class="k">N_slices (R=100m)</div><div class="v">2000</div>
+        <div class="k">N_slices (R=200m)</div><div class="v">3000</div>
+        <div class="k">Basis</div><div class="v">9×9 = 81</div>
+        <div class="k">RX grid</div><div class="v">257² × ±30 mm</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h4>What's new vs `coherent_fmcw_lidar.ipynb`</h4>
+      <div class="check-line">
+        <span class="badge" style="background: var(--accent)">A</span>
+        <span class="desc">No focusing lens (collimated beam)</span>
+      </div>
+      <div class="check-line">
+        <span class="badge" style="background: var(--accent)">B</span>
+        <span class="desc">Time-resolved chirp loop (R from physics)</span>
+      </div>
+      <div class="check-line">
+        <span class="badge" style="background: var(--accent)">C</span>
+        <span class="desc">LO designed once for nominal R</span>
+      </div>
+      <div class="check-line">
+        <span class="badge" style="background: var(--accent)">D</span>
+        <span class="desc">Normalized η (bounded [0, 1])</span>
+      </div>
+      <div class="check-line">
+        <span class="badge" style="background: var(--accent)">E</span>
+        <span class="desc">Single direction (no scan; R sweep instead)</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h4>Expected results</h4>
+      <div class="check-line">
+        <span class="badge">1</span>
+        <span class="desc">R extracted (all R, Method A)</span>
+        <span class="val">sub-mm precision</span>
+      </div>
+      <div class="check-line">
+        <span class="badge">2</span>
+        <span class="desc">R extracted (all R, Method B)</span>
+        <span class="val">~15 cm bin</span>
+      </div>
+      <div class="check-line">
+        <span class="badge">3</span>
+        <span class="desc">η at R = 100 m (nominal)</span>
+        <span class="val">≈ 1.00</span>
+      </div>
+      <div class="check-line">
+        <span class="badge">4</span>
+        <span class="desc">η at R = 1 m (off-nominal short)</span>
+        <span class="val">≈ 0.97</span>
+      </div>
+      <div class="check-line">
+        <span class="badge">5</span>
+        <span class="desc">η at R = 200 m (off-nominal long)</span>
+        <span class="val">≈ 0.91</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h4>Design notes</h4>
+      <p style="font-size:12.5px; margin:6px 0; color:var(--text);">
+        ★ <strong>Time-resolved chirp.</strong> The FMCW beat is not constructed from a precomputed <code>tau = 2R/c</code>. It emerges from how the propagation phase <code>exp(i·k(t)·2R)</code> rotates as k changes during the chirp. R is recovered from the rotation rate.
+      </p>
+      <p style="font-size:12.5px; margin:6px 0; color:var(--text);">
+        ★ <strong>Collimated beam.</strong> No focusing lens. Beam stays approximately TX-aperture-sized across the operating range (since Rayleigh range zR ≈ 316 m exceeds R = 200 m). Matches production geometry; replaces the toy 1 mm + 1 m-lens used in the other notebooks.
+      </p>
+      <p style="font-size:12.5px; margin:6px 0; color:var(--text);">
+        ★ <strong>Single LO design.</strong> Built once for nominal R = 100 m. Reused at all R values. Realistic LO mismatch at off-nominal R produces the η dip — the actual tolerance behavior of production systems.
+      </p>
+      <p style="font-size:12.5px; margin:6px 0; color:var(--text);">
+        ★ <strong>What's deferred.</strong> Full laser-source chain (EELD, fiber, amplifier, beam expander), atmospheric turbulence, diffuse-target speckle, detector noise, scanner. Each is its own future extension.
+      </p>
+    </div>
+
+  </div>
+
+</div>
+
+</body>
+</html>
