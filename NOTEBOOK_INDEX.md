@@ -43,8 +43,10 @@ All build-up notebooks live in the `build_up_notebooks/` subfolder. The two head
 
 `wavefront_aberration_lab.ipynb` is independent of the GBD_# series. It reuses the same beam-decomposition primitives but builds a separate optical-engineering diagnostic (OPD, RMS, Strehl, heterodyne efficiency η, Zernike decomposition) on top of them, and validates the diagnostic by injecting a known mix of Zernike aberrations and recovering them exactly.
 
+`realistic_time_resolved_fmcw_lidar.ipynb` is a complementary demonstration that builds on `coherent_fmcw_lidar.ipynb`. It addresses one specific shortcoming of that notebook: the FMCW beat there is constructed analytically from `tau = 2R/c` rather than derived from the chirp's physical propagation — there is no time dimension in the spatial calculation. The complementary notebook evaluates the spatial GBD calculation at multiple chirp wavelengths (time-resolved chirp slices) and extracts R from the propagation-phase rotation as the chirp sweeps `k(t)`. The scanner, Doppler, and TX lens are omitted to keep the chirp-as-actual-physics story isolated; the lens is replaced by a 25 mm collimated beam. See its own intro for parameters and results.
+
 ## Reading order
 
-If you want the shortest path: read `coherent_fmcw_lidar.ipynb` and `wavefront_aberration_lab.ipynb`. They cover everything important.
+If you want the shortest path: read `coherent_fmcw_lidar.ipynb` and `wavefront_aberration_lab.ipynb`. They cover everything important. The complementary `realistic_time_resolved_fmcw_lidar.ipynb` is worth reading if you want to see the chirp actually performing the range extraction (rather than the precomputed-`tau` form used in `coherent_fmcw_lidar.ipynb`).
 
 If you want the full validation story: walk Era 1 → 2 → 3A → 4 in order, in `build_up_notebooks/`. Each notebook lists the specific sanity checks and benchmark numbers it produces, so you can verify any step by re-running it (each takes seconds to a couple of minutes).
