@@ -16,4 +16,4 @@ Extend `realistic_time_resolved_fmcw_lidar.ipynb` from a single up-slope chirp a
 
 ## 4. Full production source modeling
 
-Replace the "25 mm collimated beam" abstraction with the actual source chain: laser diode → fast/slow-axis collimation → fiber coupling → more necessary optical elements → scanner. Captures source astigmatism, coupling losses, and scanner kinematics that the current notebooks abstract away.
+Replace the "25 mm collimated beam" abstraction with the actual source chain: laser diode → collimation optics → fiber coupling → more necessary optical elements → scanner. Captures source astigmatism, coupling losses, and scanner kinematics that the current notebooks abstract away.
