@@ -8,11 +8,12 @@ Built as a self-study to deepen my understanding of coherent automotive LiDAR fu
 
 ## Repository contents
 
-The two notebooks at the repo root are the headline deliverables. The rest of the files are companion material:
+The two notebooks at the repo root are the headline deliverables. A third, complementary notebook (`realistic_time_resolved_fmcw_lidar.ipynb`) extends one specific aspect of the headline pipeline — see Section 3 below. The rest of the files are companion material:
 
 - `coherent_fmcw_lidar.html` — single-page workflow visualization of the LiDAR signal chain (stages, per-direction measurement loop, parameters, sanity-check results).
+- `realistic_time_resolved_fmcw_lidar.html` — workflow visualization of the complementary time-resolved chirp notebook.
 - `NOTEBOOK_INDEX.md` — one-line description of every `GBD_#.ipynb` build-up notebook (Era 1 → Era 4), so you can see at a glance what each step in the staged build-up adds.
-- `NEXT_STEPS.md` — the two planned extensions: atmospheric turbulence (split-step BPM with Kolmogorov phase screens) and diffuse-target speckle.
+- `NEXT_STEPS.md` — planned extensions (atmospheric turbulence, diffuse-target speckle, Doppler in the time-resolved notebook, full production source modeling).
 - `build_up_notebooks/` — the GBD_5 through GBD_17 notebooks behind the headline result. Each one verifies a single new piece of physics or machinery (q-parameter propagator → 2-D extension → angular-spectrum validation → thin lens → mirror target → scanner → FMCW chirp → Doppler → mini point cloud) before the next one stacks on top. They are not required reading — `coherent_fmcw_lidar.ipynb` is self-contained — but they are included so anyone who wants to verify a specific step can re-run it in seconds. `GBD_17.ipynb` is the pre-cleanup version of `coherent_fmcw_lidar.ipynb`.
 
 ## What's in here
@@ -35,6 +36,49 @@ A complete coherent FMCW LiDAR simulation. For each direction in a 5×5 scan, th
 A standalone diagnostic that computes the standard wavefront-aberration metrics used throughout coherent LiDAR optical engineering. For each of five optical configurations (free space, +lens, +scanner, +mirror, +injected aberration), it reports the OPD map (2-D wavefront error in waves), RMS wavefront error (Maréchal criterion: λ/14 = diffraction-limited), Strehl ratio (extended Maréchal approximation), heterodyne efficiency η (the figure of merit for coherent detection — directly multiplies SNR), and a Zernike decomposition into the first 15 Noll-indexed modes.
 
 The C4 demo injects a known mix of Zernike aberrations (0.10 λ defocus + 0.05 λ coma + 0.04 λ spherical) and recovers them exactly, verifying the diagnostic works correctly. The framework is set up to receive disturbances (atmospheric turbulence, lens defects, alignment errors) cleanly with no further code changes.
+
+### 3. `realistic_time_resolved_fmcw_lidar.ipynb` — Demonstrating the chirp actually doing range extraction
+
+`coherent_fmcw_lidar.ipynb` has one subtle shortcoming worth being explicit about: the FMCW beat is constructed analytically from a precomputed `tau = 2R/c`, and the resulting cosine is FFT'd to "recover" R. The range output is essentially the range input round-tripped through the signal-processing chain. The simulation demonstrates the FMCW signal chain end-to-end, but the chirp itself doesn't actually do the range extraction — there is no time dimension in the spatial calculation; the chirp is purely an analytical construct in a separate post-processing step.
+
+This third notebook addresses that gap. It evaluates the spatial GBD calculation at multiple chirp wavelengths (time-resolved slices across one chirp duration) and extracts R from how the optical propagation phase rotates as the chirp sweeps `k(t)`. R is genuinely derived from physical propagation — input "target distance" goes in, output "measured range" comes out via the chirp's actual frequency sweep, not via a closed-form formula.
+
+For simplicity, the scanner, Doppler velocity, and TX focusing lens are removed in this notebook so the chirp-as-actual-physics story is isolated and clear. The lens is replaced by a 25 mm collimated beam (closer to how production hardware delivers the beam to the scanner). The local oscillator is built once for a single nominal range (R = 100 m) and used at three test ranges (1, 100, 200 m) — range comes out correctly at all three, and η shows the realistic mismatch dip at off-nominal R.
+
+Runtime ≈ 10 minutes end-to-end (R = 1 m is fast; R = 100 m and R = 200 m need thousands of chirp slices to satisfy Nyquist).
+
+## Why coherent FMCW LiDAR
+
+Coherent FMCW is the dominant 4D LiDAR technology in production automotive systems. Unlike time-of-flight LiDAR, it recovers velocity directly from a single chirp via the Doppler shift on the optical carrier, achieves sub-mm range precision through coherent peak-fitting, operates with eye-safe per-pulse energy at 1550 nm, and is naturally robust against ambient light and inter-LiDAR interference.
+
+## Why Gaussian Beam Decomposition
+
+GBD represents an arbitrary optical beam as a sum of complex-weighted Gaussian beamlets, each with its own q-parameter. Each beamlet propagates analytically through optical elements via closed-form q-parameter rules. It is naturally extensible to non-Gaussian fields via re-decomposition. Production simulation tools use related decomposition methods.
+
+## Running the notebooks
+
+```bash
+pip install numpy matplotlib jupyter
+jupyter notebook coherent_fmcw_lidar.ipynb
+```
+
+All three notebooks are self-contained — no external dependency files. The two headline notebooks each take 1-2 minutes to execute end-to-end (the 25-direction scan in `coherent_fmcw_lidar.ipynb` is the dominant cost at ~2 seconds per direction). The complementary `realistic_time_resolved_fmcw_lidar.ipynb` runs in roughly 10 minutes.
+
+The notebooks ship with their cell outputs already populated, so they're readable without re-execution.
+
+## Idealized Simplifications
+
+**Idealized** for clarity: source is monochromatic with no laser phase noise; lens is a thin perfect lens with no aberrations; target is a perfect planar mirror with no speckle; vacuum propagation (no atmosphere); no detector noise. Real LiDAR systems sit below this performance ceiling because of the degradations not yet modeled.
+
+## What's next
+
+The natural extension is **atmospheric turbulence via split-step beam-propagation method (BPM) with random Kolmogorov phase screens** at moderate AV-typical conditions (Cₙ² ≈ 10⁻¹⁴ m⁻²/³ ground-level horizontal, L₀ = 10 m outer scale). The wavefront-aberration toolkit in notebook 2 is set up to receive the resulting random aberrations cleanly: a Monte Carlo over many independent atmospheric realizations would give ensemble distributions of Strehl ratio, heterodyne efficiency, and Zernike-mode amplitudes, plus the corresponding degradation in FMCW range and velocity precision. Diffuse-target speckle is the other natural addition. In addition, velocity detection using up-down chirp is also a natural extension.
+
+See `NEXT_STEPS.md` for the planned extensions (atmospheric turbulence, diffuse-target speckle, Doppler in the time-resolved notebook, and the full production source-modeling chain).
+
+---
+
+*Built as a self-study project. Comments, corrections, and pull requests welcome.*
 
 ## Why coherent FMCW LiDAR
 
