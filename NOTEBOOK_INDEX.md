@@ -37,16 +37,28 @@ All build-up notebooks live in the `build_up_notebooks/` subfolder. The two head
 | `build_up_notebooks/GBD_16.ipynb` | Adds Doppler via a triangular chirp (up-slope + down-slope): joint recovery of range and signed radial velocity from the beat-frequency pair, validated across v ∈ {−20, −10, 0, +10, +20} m/s. **Closes Era 4 minimum.** |
 | `build_up_notebooks/GBD_17.ipynb` | Mini point cloud: combines scanner + FMCW + Doppler + mode-matched LO (matching `q_anchor`, position, AND tilt — all three are required for off-axis directions to couple) into a 5×5 scan that produces 25 `(x, y, R, v)` points. The cleaned-up presentation of this notebook is `coherent_fmcw_lidar.ipynb` at the repo root. |
 
-## How the headline notebooks relate to the series
+## How the headline notebook relates to the series
 
-`coherent_fmcw_lidar.ipynb` is a polished, standalone version of `GBD_17.ipynb` — same physics, same numerical results, with the markdown rewritten so a reader does not need any of the prior notebooks to follow it. Use the headline version for reading; refer to `GBD_17.ipynb` if you want to see how it sat in the build-up sequence.
+The headline is **`realistic_time_resolved_with_doppler.ipynb`** — a complete coherent FMCW LiDAR simulation where the chirp itself drives the range and velocity extraction from physical propagation. The repo-root notebooks together form the lineage that led to it; each one isolates one new piece of the final pipeline before the next stacks on top.
 
-`wavefront_aberration_lab.ipynb` is independent of the GBD_# series. It reuses the same beam-decomposition primitives but builds a separate optical-engineering diagnostic (OPD, RMS, Strehl, heterodyne efficiency η, Zernike decomposition) on top of them, and validates the diagnostic by injecting a known mix of Zernike aberrations and recovering them exactly.
+**`build_up_notebooks/GBD_5.ipynb` through `GBD_17.ipynb`** — the staged validation of the beam-decomposition primitives (q-parameter propagator, 2-D extension, angular-spectrum reference, thin lens, mirror target, scanner, FMCW chirp, Doppler). See the Era tables above for a one-line description of each.
 
-`realistic_time_resolved_fmcw_lidar.ipynb` is a complementary demonstration that builds on `coherent_fmcw_lidar.ipynb`. It addresses one specific shortcoming of that notebook: the FMCW beat there is constructed analytically from `tau = 2R/c` rather than derived from the chirp's physical propagation — there is no time dimension in the spatial calculation. The complementary notebook evaluates the spatial GBD calculation at multiple chirp wavelengths (time-resolved chirp slices) and extracts R from the propagation-phase rotation as the chirp sweeps `k(t)`. The scanner, Doppler, and TX lens are omitted to keep the chirp-as-actual-physics story isolated; the lens is replaced by a 25 mm collimated beam. See its own intro for parameters and results.
+**`coherent_fmcw_lidar.ipynb`** — the first end-to-end assembly of the GBD_# primitives into a working LiDAR simulation, and a polished standalone version of `GBD_17.ipynb` (same physics, same numerical results, with the markdown rewritten so a reader doesn't need any of the prior notebooks to follow it). Scans 25 directions and produces a mini point cloud. The chirp here is constructed analytically from `tau = 2R/c` rather than from time-resolved spatial GBD — but that keeps the 25-direction scan cheap (~1-2 minutes).
+
+**`realistic_time_resolved_fmcw_lidar.ipynb`** — the first notebook where the chirp runs as actual physics. Evaluates the spatial GBD calculation at multiple chirp wavenumbers (time-resolved chirp slices) and extracts R from the propagation-phase rotation as the chirp sweeps `k(t)`. Scanner, Doppler, and TX lens were stripped out to isolate the chirp-as-physics story; the lens was replaced by a 25 mm collimated beam. R sweep at 1 / 100 / 200 m.
+
+**`realistic_time_resolved_with_optics.ipynb`** — puts the TX scanner and f = 1 m thin lens back in, so the time-resolved chirp runs through the same optical train as `coherent_fmcw_lidar.ipynb`. Single on-axis direction, R sweep at 50 / 100 / 150 m.
+
+**`realistic_time_resolved_with_doppler.ipynb`** — the headline. Adds target motion to the geometry of `realistic_time_resolved_with_optics.ipynb` and recovers both R and radial velocity from a triangular (up + down) chirp. Target at R = 50 m, v = +10 m/s approaching; LO deliberately left at its R_nominal = 100 m design to demonstrate that R + v extraction is robust to LO mode-mismatch (η ≈ 0.19). Target motion is folded in physically by letting the receive plane `z_receive_i = 2·R(t_i)` move with each time slice — no `f_D = 2v/λ` is plugged into the detection formula.
+
+**`wavefront_aberration_lab.ipynb`** — independent of the lineage and of the GBD_# series. It reuses the same beam-decomposition primitives but builds a separate optical-engineering diagnostic (OPD, RMS, Strehl, heterodyne efficiency η, Zernike decomposition) on top of them, and validates the diagnostic by injecting a known mix of Zernike aberrations and recovering them exactly.
+
+See each notebook's own intro for parameters and results.
 
 ## Reading order
 
-If you want the shortest path: read `coherent_fmcw_lidar.ipynb` and `wavefront_aberration_lab.ipynb`. They cover everything important. The complementary `realistic_time_resolved_fmcw_lidar.ipynb` is worth reading if you want to see the chirp actually performing the range extraction (rather than the precomputed-`tau` form used in `coherent_fmcw_lidar.ipynb`).
+If you want the shortest path: read `realistic_time_resolved_with_doppler.ipynb` (the headline). It's self-contained — you don't need any of the precursors or the GBD_# series to follow it. `wavefront_aberration_lab.ipynb` is also worth reading on its own if you want the wavefront-aberration side.
+
+If you want the fuller story of how the pipeline was built up, read the lineage in order: `coherent_fmcw_lidar.ipynb` → `realistic_time_resolved_fmcw_lidar.ipynb` → `realistic_time_resolved_with_optics.ipynb` → `realistic_time_resolved_with_doppler.ipynb`. Each one isolates a single upgrade over the previous (first end-to-end assembly → physical chirp instead of analytical → add optics back in → add target motion).
 
 If you want the full validation story: walk Era 1 → 2 → 3A → 4 in order, in `build_up_notebooks/`. Each notebook lists the specific sanity checks and benchmark numbers it produces, so you can verify any step by re-running it (each takes seconds to a couple of minutes).
